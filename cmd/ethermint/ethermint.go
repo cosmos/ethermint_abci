@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
+	//"strings"
 	"time"
 
 	"gopkg.in/urfave/cli.v1"
@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	ethUtils "github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
-	"github.com/ethereum/go-ethereum/ethclient"
+	//"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 
 	abciApp "github.com/tendermint/ethermint/app"
@@ -99,52 +99,63 @@ func ethermintCmd(ctx *cli.Context) error {
 // startNode copies the logic from go-ethereum
 func startNode(ctx *cli.Context, stack *ethereum.Node) {
 	emtUtils.StartNode(stack)
+	fmt.Println("after start node")
+	/*
+		// Unlock any account specifically requested
+		ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
 
-	// Unlock any account specifically requested
-	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
-
-	passwords := ethUtils.MakePasswordList(ctx)
-	unlocks := strings.Split(ctx.GlobalString(ethUtils.UnlockedAccountFlag.Name), ",")
-	for i, account := range unlocks {
-		if trimmed := strings.TrimSpace(account); trimmed != "" {
-			unlockAccount(ctx, ks, trimmed, i, passwords)
-		}
-	}
-	// Register wallet event handlers to open and auto-derive wallets
-	events := make(chan accounts.WalletEvent, 16)
-	stack.AccountManager().Subscribe(events)
-
-	go func() {
-		// Create an chain state reader for self-derivation
-		rpcClient, err := stack.Attach()
-		if err != nil {
-			ethUtils.Fatalf("Failed to attach to self: %v", err)
-		}
-		stateReader := ethclient.NewClient(rpcClient)
-
-		// Open and self derive any wallets already attached
-		for _, wallet := range stack.AccountManager().Wallets() {
-			if err := wallet.Open(""); err != nil {
-				log.Warn("Failed to open wallet", "url", wallet.URL(), "err", err)
-			} else {
-				wallet.SelfDerive(accounts.DefaultBaseDerivationPath, stateReader)
+		passwords := ethUtils.MakePasswordList(ctx)
+		unlocks := strings.Split(ctx.GlobalString(ethUtils.UnlockedAccountFlag.Name), ",")
+		for i, account := range unlocks {
+			if trimmed := strings.TrimSpace(account); trimmed != "" {
+				unlockAccount(ctx, ks, trimmed, i, passwords)
 			}
 		}
-		// Listen for wallet event till termination
-		for event := range events {
-			if event.Arrive {
-				if err := event.Wallet.Open(""); err != nil {
-					log.Warn("New wallet appeared, failed to open", "url", event.Wallet.URL(), "err", err)
-				} else {
-					log.Info("New wallet appeared", "url", event.Wallet.URL(), "status", event.Wallet.Status())
-					event.Wallet.SelfDerive(accounts.DefaultBaseDerivationPath, stateReader)
+
+		fmt.Println("before events")
+		// Register wallet event handlers to open and auto-derive wallets
+		events := make(chan accounts.WalletEvent, 16)
+		stack.AccountManager().Subscribe(events)
+
+		go func() {
+			// Create an chain state reader for self-derivation
+			rpcClient, err := stack.Attach()
+			if err != nil {
+				ethUtils.Fatalf("Failed to attach to self: %v", err)
+			}
+			stateReader := ethclient.NewClient(rpcClient)
+
+			// Open any wallets already attached
+			for _, wallet := range stack.AccountManager().Wallets() {
+				if err := wallet.Open(""); err != nil {
+					log.Warn("Failed to open wallet", "url", wallet.URL(), "err", err)
 				}
-			} else {
-				log.Info("Old wallet dropped", "url", event.Wallet.URL())
-				event.Wallet.Close()
 			}
-		}
-	}()
+			fmt.Println("before events loop")
+			// Listen for wallet event till termination
+			for event := range events {
+				switch event.Kind {
+				case accounts.WalletArrived:
+					if err := event.Wallet.Open(""); err != nil {
+						log.Warn("New wallet appeared, failed to open", "url", event.Wallet.URL(), "err", err)
+					}
+				case accounts.WalletOpened:
+					status, _ := event.Wallet.Status()
+					log.Info("New wallet appeared", "url", event.Wallet.URL(), "status", status)
+
+					if event.Wallet.URL().Scheme == "ledger" {
+						event.Wallet.SelfDerive(accounts.DefaultLedgerBaseDerivationPath, stateReader)
+					} else {
+						event.Wallet.SelfDerive(accounts.DefaultBaseDerivationPath, stateReader)
+					}
+
+				case accounts.WalletDropped:
+					log.Info("Old wallet dropped", "url", event.Wallet.URL())
+					event.Wallet.Close()
+				}
+			}
+		}()
+	*/
 }
 
 // tries unlocking the specified account a few times.

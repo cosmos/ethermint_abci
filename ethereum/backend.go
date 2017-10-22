@@ -87,7 +87,7 @@ func (b *Backend) Config() *eth.Config {
 // DeliverTx appends a transaction to the current block
 // #stable
 func (b *Backend) DeliverTx(tx *ethTypes.Transaction) error {
-	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config, b.ethereum.ApiBackend.ChainConfig(), tx)
+	return b.pending.deliverTx(b.ethereum.BlockChain(), b.config, tx)
 }
 
 // AccumulateRewards accumulates the rewards based on the given strategy
@@ -105,7 +105,7 @@ func (b *Backend) Commit(receiver common.Address) (common.Hash, error) {
 // ResetWork resets the current block to a fresh object
 // #unstable
 func (b *Backend) ResetWork(receiver common.Address) error {
-	work, err := b.pending.resetWork(b.ethereum.BlockChain(), receiver)
+	work, err := b.pending.resetWork(b.ethereum, receiver)
 	b.pending.work = work
 	return err
 }
@@ -113,7 +113,7 @@ func (b *Backend) ResetWork(receiver common.Address) error {
 // UpdateHeaderWithTimeInfo uses the tendermint header to update the ethereum header
 // #unstable
 func (b *Backend) UpdateHeaderWithTimeInfo(tmHeader *abciTypes.Header) {
-	b.pending.updateHeaderWithTimeInfo(b.ethereum.ApiBackend.ChainConfig(), tmHeader.Time, tmHeader.GetNumTxs())
+	b.pending.updateHeaderWithTimeInfo(tmHeader.Time, tmHeader.GetNumTxs())
 }
 
 // GasLimit returns the maximum gas per block

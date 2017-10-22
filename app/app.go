@@ -76,7 +76,7 @@ const maxTransactionSize = 32768
 
 // Info returns information about the last height and app_hash to the tendermint engine
 // #stable - 0.4.0
-func (app *EthermintApplication) Info() abciTypes.ResponseInfo {
+func (app *EthermintApplication) Info(reqInfo abciTypes.RequestInfo) abciTypes.ResponseInfo {
 	blockchain := app.backend.Ethereum().BlockChain()
 	currentBlock := blockchain.CurrentBlock()
 	height := currentBlock.Number()
@@ -111,9 +111,9 @@ func (app *EthermintApplication) SetOption(key string, value string) string {
 
 // InitChain initializes the validator set
 // #stable - 0.4.0
-func (app *EthermintApplication) InitChain(validators []*abciTypes.Validator) {
+func (app *EthermintApplication) InitChain(reqInitChain abciTypes.RequestInitChain) {
 	app.logger.Debug("InitChain") // nolint: errcheck
-	app.SetValidators(validators)
+	app.SetValidators(reqInitChain.Validators)
 }
 
 // CheckTx checks a transaction is valid but does not mutate the state
@@ -151,11 +151,11 @@ func (app *EthermintApplication) DeliverTx(txBytes []byte) abciTypes.Result {
 
 // BeginBlock starts a new Ethereum block
 // #stable - 0.4.0
-func (app *EthermintApplication) BeginBlock(hash []byte, tmHeader *abciTypes.Header) {
+func (app *EthermintApplication) BeginBlock(beginBlock abciTypes.RequestBeginBlock) {
 	app.logger.Debug("BeginBlock") // nolint: errcheck
 
 	// update the eth header with the tendermint header
-	app.backend.UpdateHeaderWithTimeInfo(tmHeader)
+	app.backend.UpdateHeaderWithTimeInfo(beginBlock.Header)
 }
 
 // EndBlock accumulates rewards for the validators and updates them

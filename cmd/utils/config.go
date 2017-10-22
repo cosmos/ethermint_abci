@@ -94,14 +94,12 @@ func DefaultNodeConfig() node.Config {
 // SetEthermintNodeConfig takes a node configuration and applies ethermint specific configuration
 // #unstable
 func SetEthermintNodeConfig(cfg *node.Config) {
-	cfg.P2P.MaxPeers = 0
 	cfg.P2P.NoDiscovery = true
 }
 
 // SetEthermintEthConfig takes a ethereum configuration and applies ethermint specific configuration
 // #unstable
 func SetEthermintEthConfig(cfg *eth.Config) {
-	cfg.MaxPeers = 0
 	cfg.PowFake = true
 }
 

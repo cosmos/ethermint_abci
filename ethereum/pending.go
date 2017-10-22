@@ -39,12 +39,12 @@ func newPending() *pending {
 }
 
 // execute the transaction
-func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainConfig *params.ChainConfig, tx *ethTypes.Transaction) error {
+func (p *pending) deliverTx(blockchain *core.BlockChain, config *eth.Config, tx *ethTypes.Transaction) error {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
 	blockHash := common.Hash{}
-	return p.work.deliverTx(blockchain, config, chainConfig, blockHash, tx)
+	return p.work.deliverTx(blockchain, config, blockHash, tx)
 }
 
 // accumulate validator rewards
@@ -65,7 +65,7 @@ func (p *pending) commit(ethereum *eth.Ethereum, receiver common.Address) (commo
 		return common.Hash{}, err
 	}
 
-	work, err := p.resetWork(ethereum.BlockChain(), receiver)
+	work, err := p.resetWork(ethereum, receiver)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -75,30 +75,31 @@ func (p *pending) commit(ethereum *eth.Ethereum, receiver common.Address) (commo
 }
 
 // return a new work object with the latest block and state from the chain
-func (p *pending) resetWork(blockchain *core.BlockChain, receiver common.Address) (*work, error) {
-	state, err := blockchain.State()
+func (p *pending) resetWork(ethereum *eth.Ethereum, receiver common.Address) (*work, error) {
+	state, err := ethereum.BlockChain().State()
 	if err != nil {
 		return nil, err
 	}
 
-	currentBlock := blockchain.CurrentBlock()
+	currentBlock := ethereum.BlockChain().CurrentBlock()
 	ethHeader := newBlockHeader(receiver, currentBlock)
 
 	return &work{
 		header:       ethHeader,
 		parent:       currentBlock,
 		state:        state,
+		chainConfig:  ethereum.ApiBackend.ChainConfig(),
 		txIndex:      0,
 		totalUsedGas: big.NewInt(0),
 		gp:           new(core.GasPool).AddGas(ethHeader.GasLimit),
 	}, nil
 }
 
-func (p *pending) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
+func (p *pending) updateHeaderWithTimeInfo(parentTime uint64, numTx uint64) {
 	p.mtx.Lock()
 	defer p.mtx.Unlock()
 
-	p.work.updateHeaderWithTimeInfo(config, parentTime, numTx)
+	p.work.updateHeaderWithTimeInfo(parentTime, numTx)
 }
 
 func (p *pending) gasLimit() big.Int {
@@ -128,9 +129,10 @@ func (p *pending) Pending() (*ethTypes.Block, *state.StateDB) {
 // The work struct handles block processing.
 // It's updated with each DeliverTx and reset on Commit
 type work struct {
-	header *ethTypes.Header
-	parent *ethTypes.Block
-	state  *state.StateDB
+	header      *ethTypes.Header
+	parent      *ethTypes.Block
+	state       *state.StateDB
+	chainConfig *params.ChainConfig
 
 	txIndex      int
 	transactions []*ethTypes.Transaction
@@ -143,16 +145,16 @@ type work struct {
 
 // nolint: unparam
 func (w *work) accumulateRewards(strategy *emtTypes.Strategy) {
-	ethash.AccumulateRewards(w.state, w.header, []*ethTypes.Header{})
+	ethash.AccumulateRewards(w.chainConfig, w.state, w.header, []*ethTypes.Header{})
 	w.header.GasUsed = w.totalUsedGas
 }
 
 // Runs ApplyTransaction against the ethereum blockchain, fetches any logs,
 // and appends the tx, receipt, and logs
-func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, chainConfig *params.ChainConfig, blockHash common.Hash, tx *ethTypes.Transaction) error {
+func (w *work) deliverTx(blockchain *core.BlockChain, config *eth.Config, blockHash common.Hash, tx *ethTypes.Transaction) error {
 	w.state.Prepare(tx.Hash(), blockHash, w.txIndex)
 	receipt, _, err := core.ApplyTransaction(
-		chainConfig,
+		w.chainConfig,
 		blockchain,
 		nil, // defaults to address of the author of the header
 		w.gp,
@@ -207,7 +209,7 @@ func (w *work) commit(blockchain *core.BlockChain, db ethdb.Database) (common.Ha
 	return blockHash, err
 }
 
-func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime uint64, numTx uint64) {
+func (w *work) updateHeaderWithTimeInfo(parentTime uint64, numTx uint64) {
 	lastBlock := w.parent
 	parentHeader := &ethTypes.Header{
 		Difficulty: lastBlock.Difficulty(),
@@ -215,7 +217,7 @@ func (w *work) updateHeaderWithTimeInfo(config *params.ChainConfig, parentTime u
 		Time:       lastBlock.Time(),
 	}
 	w.header.Time = new(big.Int).SetUint64(parentTime)
-	w.header.Difficulty = ethash.CalcDifficulty(config, parentTime, parentHeader)
+	w.header.Difficulty = ethash.CalcDifficulty(w.chainConfig, parentTime, parentHeader)
 	w.transactions = make([]*ethTypes.Transaction, 0, numTx)
 	w.receipts = make([]*ethTypes.Receipt, 0, numTx)
 	w.allLogs = make([]*ethTypes.Log, 0, numTx)
