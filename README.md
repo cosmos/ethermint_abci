@@ -1,6 +1,8 @@
 # Ethermint
 
-Ethereum powered by Tendermint consensus
+**DEPRECATED:** See the link below for latest Ethermint.
+
+- https://github.com/cosmos/ethermint
 
 [![Build Status](https://travis-ci.org/tendermint/ethermint.svg?branch=develop)](https://travis-ci.org/tendermint/ethermint) [![License](https://img.shields.io/badge/license-GPLv3.0%2B-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html) [![Documentation Status](https://readthedocs.org/projects/ethermint/badge/?version=master)](http://ethermint.readthedocs.io/en/latest/?badge=master)
 
